@@ -1,0 +1,190 @@
+---
+title: "Drug Group Analyzer"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Import Libraries
+
+```{r}
+library(tidyverse)
+```
+
+Load Diabetes Data from the Excel
+
+```{r}
+file_path = "/Users/prolap/v2/hult/events/HultHustle/HultHustle/files/diabetic_data.xlsx"
+```
+
+Read Diabetes Data
+
+```{r}
+diabetic_data_df = read_excel(file_path, sheet=1)
+# Clean Diabetes Main Data
+diabetic_data_df =diabetic_data_df %>% mutate(age = str_replace_all(age, "\\[|\\)", ""))
+diabetic_data_df[diabetic_data_df == "?"] <- NA
+glimpse(diabetic_data_df)
+```
+
+Read Drug Mapper Data
+
+```{r}
+drug_type_mapper_df = read_excel(file_path, sheet=2, col_names=c('drug', 'drug_group'))
+glimpse(drug_type_mapper_df)
+```
+
+
+```{r}
+drugs_df = diabetic_data_df %>% select(admission_type_id, admission_source_id, medical_specialty, (25:50))
+drugs_df
+```
+
+```{r}
+drug_types = c("Biguanides", "Sulfonylureas", "Alpha-glucosidase", "Meglitinides", "Thiazolidinediones", "gliptins")
+for (drugtype in drug_types) {
+  print(drugtype)
+  v_drug_list = drug_type_mapper_df %>% filter(drug_group == drugtype) %>% select("drug")  %>% unlist(use.names = FALSE)
+  print(length(v_drug_list))
+}
+
+```
+	
+	Create Columns for each of the Drug Groups so that we can run analytics over them.
+
+```{r}
+v_drug_list1 = drug_type_mapper_df %>% filter(drug_group == "Biguanides") %>% select("drug")  %>% unlist(use.names = FALSE)
+drugs_df = drugs_df %>% mutate(Biguanides = ifelse(.data[[v_drug_list1[[1]]]] != "No" |
+                                        .data[[v_drug_list1[[2]]]] != "No" |
+                                        .data[[v_drug_list1[[3]]]] != "No", 
+                                        "Yes", "No"))
+
+v_drug_list2 = drug_type_mapper_df %>% filter(drug_group == "Sulfonylureas") %>% select("drug")  %>% unlist(use.names = FALSE)
+drugs_df = drugs_df %>% mutate(Sulfonylureas = ifelse(.data[[v_drug_list2[[1]]]] != "No" |
+                                        .data[[v_drug_list2[[2]]]] != "No" |
+                                        .data[[v_drug_list2[[3]]]] != "No" |
+                                        .data[[v_drug_list2[[4]]]] != "No" |
+                                        .data[[v_drug_list2[[5]]]] != "No" |
+                                        .data[[v_drug_list2[[6]]]] != "No" |
+                                        .data[[v_drug_list2[[7]]]] != "No" |
+                                        .data[[v_drug_list2[[8]]]] != "No" |
+                                        .data[[v_drug_list2[[9]]]] != "No", 
+                                        "Yes", "No"))
+
+v_drug_list3 = drug_type_mapper_df %>% filter(drug_group == "Alpha-glucosidase") %>% select("drug")  %>% unlist(use.names = FALSE)
+drugs_df = drugs_df %>% mutate(AlphaGlucosidase = ifelse(.data[[v_drug_list3[[1]]]] != "No" |
+                                        .data[[v_drug_list3[[2]]]] != "No",
+                                        "Yes", "No"))
+
+
+v_drug_list4 = drug_type_mapper_df %>% filter(drug_group == "Meglitinides") %>% select("drug")  %>% unlist(use.names = FALSE)
+drugs_df = drugs_df %>% mutate(Meglitinides = ifelse(.data[[v_drug_list4[[1]]]] != "No" |
+                                        .data[[v_drug_list4[[2]]]] != "No",
+                                        "Yes", "No"))
+
+v_drug_list5 = drug_type_mapper_df %>% filter(drug_group == "Thiazolidinediones") %>% select("drug")  %>% unlist(use.names = FALSE)
+drugs_df = drugs_df %>% mutate(Thiazolidinediones = ifelse(.data[[v_drug_list5[[1]]]] != "No" |
+                                        .data[[v_drug_list5[[2]]]] != "No", 
+                                        "Yes", "No"))
+
+v_drug_list6 = drug_type_mapper_df %>% filter(drug_group == "gliptins") %>% select("drug")  %>% unlist(use.names = FALSE)
+drugs_df = drugs_df %>% mutate(gliptins = ifelse(.data[[v_drug_list[[1]]]] != "No", 
+                                        "Yes", "No"))
+
+```
+
+Quick Clean up over medicines
+
+```{r}
+drugs_df <- drugs_df[-c(4:27)]
+drugs_df
+```
+
+```{r}
+col_order <- c("Biguanides", "Sulfonylureas", "AlphaGlucosidase", "Meglitinides", "Thiazolidinediones", "gliptins", "admission_type_id", "admission_source_id", "medical_specialty", "readmitted")
+drugs_df <- drugs_df[, col_order]
+drugs_df
+```
+
+Group Plot
+
+```{r}
+drug_groups <- c("Biguanides", "Sulfonylureas", "AlphaGlucosidase", "Meglitinides", "Thiazolidinediones", "gliptins")
+plot_df = as.data.frame(table(drugs_df[drug_groups[1]]))
+ggplot(plot_df, aes(x=Var1, y=Freq, fill=Var1)) + geom_col(width=0.2) + labs(title=drug_groups[1], x = "", y = "Frequency")
+plot_df = as.data.frame(table(drugs_df[drug_groups[2]]))
+ggplot(plot_df, aes(x=Var1, y=Freq, fill=Var1)) + geom_col(width=0.2) + labs(title=drug_groups[2], x = "", y = "Frequency")
+plot_df = as.data.frame(table(drugs_df[drug_groups[3]]))
+ggplot(plot_df, aes(x=Var1, y=Freq, fill=Var1)) + geom_col(width=0.2) + labs(title=drug_groups[3], x = "", y = "Frequency")
+plot_df = as.data.frame(table(drugs_df[drug_groups[4]]))
+ggplot(plot_df, aes(x=Var1, y=Freq, fill=Var1)) + geom_col(width=0.2) + labs(title=drug_groups[4], x = "", y = "Frequency")
+plot_df = as.data.frame(table(drugs_df[drug_groups[5]]))
+ggplot(plot_df, aes(x=Var1, y=Freq, fill=Var1)) + geom_col(width=0.2) + labs(title=drug_groups[5], x = "", y = "Frequency")
+```
+From the data set it is evident that Sulfonylureas are administered the most followed by Biguanides. Lets see the efficiency of these 
+drug groups
+
+Efficacy of Sulfonylureas
+
+```{r}
+drugs_df <- drugs_df %>% mutate(readmitted = as.factor(readmitted), Sulfonylureas = as.factor(Sulfonylureas), Biguanides=as.factor(Biguanides))
+# Testing the efficacy of Sulfonylureas
+plot_df = drugs_df %>% filter(Sulfonylureas == "Yes")
+graph1_df = as.data.frame(table(plot_df$readmitted))
+graph1_df
+ggplot(graph1_df, aes(x=Var1, y=Freq, fill=Var1)) + geom_col(width=0.2) + labs(title="Sulfonylureas - Readmission", x = "", y = "Frequency")
+```
+Efficacy of Sulfonylureas
+
+```{r}
+# Custom Parameters <30 
+efficacy_sulfonylureas = 15276 / (15276+3159+10510)
+print(efficacy_sulfonylureas*100)
+```
+
+
+Efficacy of Biguanides
+
+```{r}
+# Testing the efficacy of Biguanides
+plot_df = drugs_df %>% filter(Biguanides == "Yes")
+graph2_df = as.data.frame(table(plot_df$readmitted))
+graph2_df
+ggplot(graph2_df, aes(x=Var1, y=Freq, fill=Var1)) + geom_col(width=0.2) + labs(title="Biguanides - Readmission", x = "", y = "Frequency")
+```
+
+```{r}
+efficacy_biguanides = 11344 / (11344+6706+1939)
+print(efficacy_biguanides*100)
+```
+
+
+In our research efficacy of Biguanides for hospitalized case with respect to this dataset with readmission factor came up to 56.75% whereas efficacy of Sulfonylureas was 52.78%. This would be a great point to start while making RND decisions for a new drug for Type 2 Diabetes
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

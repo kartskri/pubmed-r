@@ -1,0 +1,128 @@
+---
+title: "Read from a Pub Dataset of XML and try to create a dataframe with all relevant values"
+output: html_notebook
+---
+
+Import Files
+
+```{r}
+install.packages("xml2")
+library(tidyverse)
+library(xml2)
+library("methods")
+library(writexl)
+```
+
+Initialize Context
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir = "")
+setwd("/Users/prolap/v2/hult/events/HultHustle/pubmed/case-report-dataset/articles/")
+getwd()
+```
+
+Utility function for Parsing XML Node
+
+```{r}
+parse_xmlnode_vec <- function(resp_xml, xpath_val) {
+  xmlnode <- xml_find_all(resp_xml, xpath = xpath_val)
+  
+  vec <- c()
+  for (element in xml_contents(xmlnode)) {
+    vec <- c(vec, xml_text(element))
+  }
+  return(vec)
+}
+```
+
+POC for XML Parsing
+
+```{r}
+# Test XML Setup
+resp_xml <- read_xml("/Users/prolap/v2/hult/events/HultHustle/pubmed/case-report-dataset/articles/article_0000000001.xml")
+resp_xml
+```
+
+POC for fetching Last Name
+
+```{r}
+last_name = parse_xmlnode_vec(resp_xml, "//LastName")
+last_name[1]
+```
+
+POC for fetching First Name
+
+```{r}
+first_name = parse_xmlnode_vec(resp_xml, "//ForeName")
+first_name[1]
+```
+
+POC for fetching Publication Id
+
+```{r}
+publicationMedicationId = parse_xmlnode_vec(resp_xml, ".//PMID")
+publicationMedicationId
+```
+
+POC for fetching Article Title
+
+
+```{r}
+articleTitle <- parse_xmlnode_vec(resp_xml, ".//ArticleTitle")
+articleTitle
+```
+
+```{r}
+publicationTypeList <- parse_xmlnode_vec(resp_xml, ".//PublicationTypeList")
+publicationTypeList
+```
+
+Create Empty Dataframe
+
+```{r}
+df <- data.frame(PubMedicationId = character(),
+                 ArticleTitle=character(),
+                 AuthorFirstName=character(),
+                 AuthorLastName=character(),
+                 stringsAsFactors=FALSE)
+```
+
+Function for Parsing XML File
+
+```{r}
+xml_file_parser <- function(xml_file) {
+  # Query Records
+  pub_med_id = parse_xmlnode_vec(xml_file, ".//PMID")
+  article_title <- parse_xmlnode_vec(xml_file, ".//ArticleTitle")
+  first_name = parse_xmlnode_vec(xml_file, "//ForeName")
+  last_name = parse_xmlnode_vec(xml_file, "//LastName")
+  # Vector
+  article_title <- str_replace_all(article_title, "[^[:alnum:]]", " ")
+  parsed_content <- c(pub_med_id[1], article_title[1], first_name[1], last_name[1])
+  return(parsed_content)
+}
+```
+
+Parsing 200K + files and creating a CSV File
+
+```{r}
+files <-list.files(path="/Users/prolap/v2/hult/events/HultHustle/pubmed/case-report-dataset/articles/")
+length(files)
+
+for(file in files) {
+  try({
+    file_path = paste("/Users/prolap/v2/hult/events/HultHustle/pubmed/case-report-dataset/articles/", file, sep="")
+    xml_file <- read_xml(file_path)
+    vec = xml_file_parser(xml_file)
+    df[nrow(df) + 1,] = vec
+  })
+}
+#
+print("Formation of Dataframe complete ...")
+# Write the Data to a csv file 
+write_csv(df, '/Users/prolap/v2/hult/events/HultHustle/HultHustle/team9_hult_hustle_pubmed_fulldb.csv')
+print("CSV File Written ...")
+```
+
+

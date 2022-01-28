@@ -1,0 +1,133 @@
+---
+title: "Data Analytics over Diabetes Admission Data"
+output: html_notebook
+---
+
+Import Libraries
+
+```{r}
+library(tidyverse)
+library(readxl)
+library("dplyr")
+library("ggplot2")
+library(stringr)
+library(assertive)
+```
+
+Load Diabetes Data from the Excel
+
+```{r}
+DIABETES_DATA = "/Users/prolap/v2/hult/events/HultHustle/HultHustle/files/diabetic_data.xlsx"
+```
+
+
+```{r}
+diabetic_data = read_excel(DIABETES_DATA, sheet=1)
+```
+
+Clean Diabetes Data - Remove square brackets and modify the question mark to ?
+
+```{r}
+# Clean Diabetes Main Data
+diabetic_data =diabetic_data %>% mutate(age = str_replace_all(age, "\\[|\\)", ""))
+diabetic_data[diabetic_data == "?"] <- NA
+glimpse(diabetic_data)
+```
+
+Merge Admission Source Id with the diabetes data
+
+```{r}
+admission_types_mapper_df = read_excel(DIABETES_DATA, sheet=3)
+glimpse(admission_types_mapper_df)
+```
+
+Merge - Clean Admission Data and run visualization with the diabetes data
+
+```{r}
+# Query Admission Data by removing bad data
+admissions_data <- diabetic_data %>% filter(!admission_type_id %in% c(5,6,8))
+temp_df <- (table(admissions_data$admission_type_id))
+temp_df <- as.data.frame(temp_df)
+temp_df <- merge(temp_df, admission_types_mapper_df, by.x ="Var1", by.y = "admission_type_id")
+temp_df <- temp_df %>% mutate(Var1 = as.factor(Var1), description = as.factor(description))
+assert_is_data.frame(temp_df)
+
+# Plot [Admission Type vs Frequency in the Dataset]
+admissions_type_frequency_plot = ggplot(temp_df, aes(x=description, y=Freq)) + 
+  geom_bar(stat="identity", fill="#0045a5") + 
+  geom_text(aes(label=Freq), position=position_dodge(width=0.9), vjust=-0.25) +
+  xlab("Admission Type") + ylab("Frequency") + scale_y_log10()
+admissions_type_frequency_plot
+```
+
+Merge Admission Sources with the Diabetes Data and run plots
+
+```{r}
+admission_sources_mapper_df = read_excel(DIABETES_DATA, sheet=5)
+glimpse(admission_sources_mapper_df)
+
+# Admission Sources Create Summary Table
+admission_sources_data <- diabetic_data %>% filter(!admission_source_id %in% c(9,15,17,20,21))
+admission_sources_clean_data <- admission_sources_mapper_df %>% filter(!admission_source_id %in% c(9,15,17,20,21))
+temp_df <- table(admission_sources_data$admission_source_id)
+temp_df <- as.data.frame(temp_df)
+assert_is_data.frame(temp_df)
+temp_df <- merge(temp_df, admission_sources_clean_data, by.x ="Var1", by.y = "admission_source_id")
+temp_df <- temp_df[order (-temp_df[,2]),]  %>% mutate(Freq = as.numeric(Freq))
+# Reset Index
+rownames(temp_df) = seq(length=nrow(temp_df))
+top_admission_sources = temp_df[1:6,] %>% mutate(Var1 = as.factor(Var1), description = as.factor(description))
+top_admission_sources
+
+admissions_sources_frequency_plot = ggplot(data=top_admission_sources, aes(x=description, y=Freq)) + 
+  geom_bar(stat="identity", fill="#0045a5") + 
+  theme(axis.text.x = element_text(angle = 60, hjust = 1)) +
+  geom_text(aes(label=Freq), position=position_dodge(width=0.9), vjust=-0.25) +
+  xlab("Admission Source") + ylab("Frequency")
+admissions_sources_frequency_plot
+```
+
+Factorize Age and Gender
+
+```{r}
+# No of the Columns
+sprintf("No of Columns %d", length(names(diabetic_data)))
+# Clean Age
+diabetic_data <- diabetic_data %>% 
+    mutate(age = str_replace_all(age, "\\[|\\)", ""),
+           age = as.factor(age),
+           gender = as.factor(gender))
+# Assert gender is a factor
+assert_is_factor(diabetic_data$gender)
+
+```
+
+
+Gender Analysis
+
+```{r}
+# Gender
+table(diabetic_data$gender)
+# There are 3 records with gender with data "Unknown/Invalid" - Let's Remove it 
+diabetic_data<-diabetic_data[!(diabetic_data$gender=="Unknown/Invalid"),]
+age_gender_plot = ggplot(diabetic_data, aes(x=age, fill=gender)) + geom_bar(position = "dodge") + 
+  ggtitle("Age Vs Gender") + xlab("Age") + ylab("Gender")
+age_gender_plot
+```
+
+Medical Specialty
+
+```{r}
+# Medical Specialty
+table(diabetic_data$medical_specialty)
+```
+
+
+```{r}
+graph_df = as.data.frame(table(diabetic_data$medical_specialty))
+graph2_df = graph_df %>% filter(Var1 != "?") %>% arrange(desc(Freq)) %>% slice(1:10)
+ggplot(graph2_df, aes(x=Var1, y=Freq, fill=Var1)) + geom_col(width=0.2) + coord_flip() + labs(title="Medical Speciality treating Diabetes", x = "", y = "Frequency")
+```
+
+Internal Medicine treated most number of cases followed by Family / General Practice and Emergency/ Trauma
+
