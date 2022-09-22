@@ -1,4 +1,4 @@
-The project has three objectives 
+The Pub med project has three objectives 
 
 Objective 1 - PubMed Database Analysis
 
